@@ -25,13 +25,15 @@
   ******************************************************************************
   */ 
 
-
 /* Includes ------------------------------------------------------------------*/
 #include "stm8s.h"
 #include "stm8s_it.h"    /* SDCC patch: required by SDCC for interrupts */
+// #include "stm8_tsl_services.h"
+// #include "stm8_tsl_se.h"
 #include "stdio.h"
 #include "stm8s_it.h"    // SDCC requires ISR declaration to be included here
 
+#define DEVICE STM8S103
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -42,7 +44,10 @@
   #define PUTCHAR_PROTOTYPE char putchar (char c)
   #define GETCHAR_PROTOTYPE char getchar (void)
 #elif defined (_SDCC_)                    /* SDCC patch: same types as stdio.h */
-  #if SDCC_VERSION >= 30605               // declaration changed in sdcc 3.6.5 (officially with 3.7.0)
+  #if SDCC_VERSION >= 30700               // declaration changed in sdcc 3.7.0
+    #define PUTCHAR_PROTOTYPE int putchar (int c)
+    #define GETCHAR_PROTOTYPE int getchar (void)
+  #elif SDCC_VERSION >= 30605               // declaration changed in sdcc 3.6.5
     #define PUTCHAR_PROTOTYPE int putchar (int c)
     #define GETCHAR_PROTOTYPE char getchar (void)
   #else
@@ -78,9 +83,11 @@ void main(void)
 
   /* Initialize LED pins in Output Mode */
   #if (DEVICE==STM8S103)    // 1$ STM8 board, see https://www.cnx-software.com/2015/01/18/one-dollar-development-board/
-    GPIO_Init(GPIOD, (GPIO_Pin_TypeDef)GPIO_PIN_3, GPIO_MODE_OUT_PP_LOW_FAST);
-    GPIO_WriteHigh(GPIOD, (GPIO_Pin_TypeDef)GPIO_PIN_3);
+    #warning STM8S103 selected 
+    GPIO_Init(GPIOB, (GPIO_Pin_TypeDef)GPIO_PIN_5, GPIO_MODE_OUT_PP_LOW_FAST);
+    GPIO_WriteHigh(GPIOB, (GPIO_Pin_TypeDef)GPIO_PIN_5);
   #elif (DEVICE==STM8S208)  // muBoard, see https://frosch.piandmore.de//de/pam9/call/public-media/event_media/160611_Vortrag_Interpreter.pdf
+    #warning STM8S208 selected
     GPIO_Init(GPIOH, (GPIO_Pin_TypeDef)(GPIO_PIN_2 | GPIO_PIN_3), GPIO_MODE_OUT_PP_LOW_FAST);
     GPIO_WriteHigh(GPIOH, (GPIO_Pin_TypeDef)(GPIO_PIN_2 | GPIO_PIN_3));
   #else
@@ -129,7 +136,7 @@ void main(void)
       {
         // toogle LED
         #if (DEVICE==STM8S103)
-          GPIO_WriteReverse(GPIOD, (GPIO_Pin_TypeDef)GPIO_PIN_3);
+          GPIO_WriteReverse(GPIOB, (GPIO_Pin_TypeDef)GPIO_PIN_5);
         #elif (DEVICE==STM8S208)  // muBoard, see https://frosch.piandmore.de//de/pam9/call/public-media/event_media/160611_Vortrag_Interpreter.pdf
           GPIO_WriteReverse(GPIOH, (GPIO_Pin_TypeDef)GPIO_PIN_2);
         #else
