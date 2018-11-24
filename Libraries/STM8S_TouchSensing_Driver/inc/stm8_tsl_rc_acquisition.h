@@ -77,7 +77,7 @@ volatile u16 TIMACQ_CNTR @ TIMACQ_CNTR_ADD;
 #elif defined(_RAISONANCE_)
 at TIMACQ_CNTR_ADD hreg16 TIMACQ_CNTR;
 #elif defined(_SDCC_)
-volatile u16 TIMACQ_CNTR @ TIMACQ_CNTR_ADD;
+//volatile u16 TIMACQ_CNTR @ TIMACQ_CNTR_ADD;
 #else
 __no_init volatile u16 TIMACQ_CNTR @ TIMACQ_CNTR_ADD;
 #endif

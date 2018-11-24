@@ -258,6 +258,12 @@ ShiftLoopVih:
   __asm("ShiftLoopVih:");
   __asm("dec a");        // 1 cycle
   __asm("jrne ??ShiftLoopVih");
+#elif defined(_SDCC_)
+  __asm__("ld a, _SamplingShifter"); //s: to use a zero page addressing mode
+  // 3 cycles loop if jump executed; 2 cycles loop if not.
+  __asm__("ShiftLoopVih:");
+  __asm__("dec a");        // 1 cycle
+  __asm__("jrne ShiftLoopVih");
 #else //_RAISONANCE_
 #pragma ASM
   ld a, SamplingShifter;// 3 cycles loop if jump executed; 2 cycles loop if not.
@@ -313,6 +319,21 @@ EndWaitForVil:
   __asm("cpw y, #0x0E00");    // 2 cycles; Timeout compare
   __asm("jrult ??WaitForVil");
   __asm("EndWaitForVil:");
+#elif defined(_SDCC_)
+  __asm__("ld a, _AcquisitionBitMask"); //s: to use a zero page addressing mode
+  __asm__("ldw x, _sTouchIO");   // Input data register ...  //s: to use a zero page addressing mode
+  __asm__("incw x");
+  // Loop = 1 + 1 + 2 + 2 + 2 cycles = 8 cycles
+  __asm__("WaitForVil:");
+// To be sure that the loop last 8 cycles the first instruction must be a 1-byte instruction
+// This is to be sure it is fully fetched in 1 cycle. The second instruction must be shorter than 4 bytes.
+// If this not the case, the code must be aligned.  
+  __asm__("bcp a, (x)");  // 1 cycles
+  __asm__("jreq EndWaitForVil");
+  __asm__("ldw y, TIMACQ_CNTR"); // 2 cycles; hw counter also used for timeout ...
+  __asm__("cpw y, #0x0E00");    // 2 cycles; Timeout compare
+  __asm__("jrult WaitForVil");
+  __asm__("EndWaitForVil:");
 #else //_RAISONANCE_
 #pragma ASM
   ld a, AcquisitionBitMask
@@ -377,6 +398,21 @@ EndWaitForVih:
   __asm("cpw y, #0x0E00");    // 2 cycles; Timeout compare
   __asm("jrult ??WaitForVih");
   __asm("EndWaitForVih:");
+#elif defined(_SDCC_)
+  __asm__("ld a, _AcquisitionBitMask"); //s: to use a zero page addressing mode
+  __asm__("ldw x, _sTouchIO");   // Input data register ...  //s: to use a zero page addressing mode
+  __asm__("incw x");
+  // Loop = 1 + 1 + 2 + 2 + 2 cycles = 8 cycles
+  __asm__("WaitForVih:");
+// To be sure that the loop last 8 cycles the first instruction must be a 1-byte instruction
+// This is to be sure it is fully fetched in 1 cycle. The second instruction must be shorter than 4 bytes.
+// If this not the case, the code must be aligned.  
+  __asm__("bcp a, (x)");  // 1 cycles
+  __asm__("jrne EndWaitForVih");
+  __asm__("ldw y, TIMACQ_CNTR"); // 2 cycles; hw counter also used for timeout ...
+  __asm__("cpw y, #0x0E00");    // 2 cycles; Timeout compare
+  __asm__("jrult WaitForVih");
+  __asm__("EndWaitForVih:");
 #else  //_RAISONANCE_
 #pragma ASM
   ld a, AcquisitionBitMask
@@ -590,6 +626,11 @@ void TSL_IO_SW_Burst_Stop_Timer(void)
   __asm("ld CounterStop, a");
   __asm("ld a, TIMACQ_CNTR + 1");
   __asm("ld CounterStop + 1, a");
+#elif defined(_SDCC_)
+  __asm__("ld a, TIMACQ_CNTR");
+  __asm__("ld CounterStop, a");
+  __asm__("ld a, TIMACQ_CNTR + 1");
+  __asm__("ld CounterStop + 1, a");
 #else
 #pragma ASM
   ld a, TIMACQ_CNTR
