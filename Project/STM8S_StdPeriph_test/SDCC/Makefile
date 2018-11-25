@@ -40,11 +40,11 @@ SPL_LIB_DIR = $(SPL_ROOT)/Libraries/STM8S_StdPeriph_Driver/$(DEVICE)
 SPL_LIB = spl.lib
 
 # set STS paths
-STS_ROOT    = ../../..
-STS_MAKE_DIR = $(STS_ROOT)/Libraries/STM8S_TouchSensing_Driver
-STS_INC_DIR = $(STS_ROOT)/Libraries/STM8S_TouchSensing_Driver/inc
-STS_LIB_DIR = $(STS_ROOT)/Libraries/STM8S_TouchSensing_Driver/$(DEVICE)
-STS_LIB = sts.lib
+TSL_ROOT    = ../../..
+TSL_MAKE_DIR = $(TSL_ROOT)/Libraries/STM8S_TouchSensing_Driver
+TSL_INC_DIR = $(TSL_ROOT)/Libraries/STM8S_TouchSensing_Driver/inc
+TSL_LIB_DIR = $(TSL_ROOT)/Libraries/STM8S_TouchSensing_Driver/$(DEVICE)
+TSL_LIB = sts.lib
 
 # set path to STM8S_EVAL board routines
 EVAL_DIR     = $(SPL_ROOT)/Utilities/STM8S_EVAL
@@ -63,7 +63,7 @@ EVAL_STM8S_128K_OBJECTS := $(addprefix $(OUTPUT_DIR)/, $(EVAL_STM8S_128K_SOURCE:
 
 
 # collect all include folders
-INCLUDE = -I$(PRJ_SRC_DIR) -I$(SPL_INC_DIR) -I$(STS_INC_DIR) -I$(EVAL_DIR) -I$(EVAL_COMM_DIR) -I$(EVAL_STM8S_128K_DIR)
+INCLUDE = -I$(PRJ_SRC_DIR) -I$(SPL_INC_DIR) -I$(TSL_INC_DIR) -I$(EVAL_DIR) -I$(EVAL_COMM_DIR) -I$(EVAL_STM8S_128K_DIR)
 
 # collect all source directories
 VPATH=$(PRJ_SRC_DIR):$(SPL_SRC_DIR):$(EVAL_DIR):$(EVAL_COMM_DIR):$(EVAL_STM8S_128K_DIR)
@@ -75,8 +75,8 @@ all: $(OUTPUT_DIR) $(TARGET) $(SPL_LIB)
 $(SPL_LIB):
 	$(MAKE) -C $(SPL_MAKE_DIR) DEVICE=$(DEVICE)
 
-$(STS_LIB):
-	$(MAKE) -C $(STS_MAKE_DIR) DEVICE=$(DEVICE)
+$(TSL_LIB):
+	$(MAKE) -C $(TSL_MAKE_DIR) DEVICE=$(DEVICE)
 
 $(OUTPUT_DIR):
 	mkdir -p $(OUTPUT_DIR)
@@ -87,13 +87,13 @@ $(OUTPUT_DIR)/%.rel: %.c
 $(OUTPUT_DIR)/%.rel: %.c
 	$(CC) $(CFLAGS) $(INCLUDE) -D$(DEVICE) -c $? -o $@
 
-$(TARGET): $(PRJ_OBJECTS) $(SPL_LIB) $(STS_LIB) $(EVAL_OBJECTS) $(EVAL_COMM_OBJECTS) $(EVAL_STM8S_128K_OBJECTS)
-	$(CC) $(CFLAGS) -o $(TARGET) -L$(SPL_LIB_DIR) -L$(STS_LIB_DIR) -l$(SPL_LIB) $^
+$(TARGET): $(PRJ_OBJECTS) $(SPL_LIB) $(TSL_LIB) $(EVAL_OBJECTS) $(EVAL_COMM_OBJECTS) $(EVAL_STM8S_128K_OBJECTS)
+	$(CC) $(CFLAGS) -o $(TARGET) -L$(SPL_LIB_DIR) -L$(TSL_LIB_DIR) -l$(SPL_LIB) $^
 
 clean: 
 	rm -fr $(OUTPUT_DIR)
 	$(MAKE) -C $(SPL_MAKE_DIR) clean
-	$(MAKE) -C $(STS_MAKE_DIR) clean
+	$(MAKE) -C $(TSL_MAKE_DIR) clean
 
 flash: $(TARGET)
 	stm8flash -cstlinkv2 -pstm8s103f3 -w $(TARGET)
