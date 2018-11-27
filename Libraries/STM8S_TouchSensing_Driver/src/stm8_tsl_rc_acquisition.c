@@ -37,6 +37,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm8_tsl_rc_acquisition.h"
 #include "stm8_tsl_services.h"
+#include "stdio.h"
 
 
 /*#if defined(__RCSTM8__)
@@ -330,7 +331,7 @@ EndWaitForVil:
 // If this not the case, the code must be aligned.  
   __asm__("bcp a, (x)");  // 1 cycles
   __asm__("jreq EndWaitForVil");
-  __asm__("ldw y, TIMACQ_CNTR"); // 2 cycles; hw counter also used for timeout ...
+  __asm__("ldw y, _TIMACQ_CNTR"); // 2 cycles; hw counter also used for timeout ...
   __asm__("cpw y, #0x0E00");    // 2 cycles; Timeout compare
   __asm__("jrult WaitForVil");
   __asm__("EndWaitForVil:");
@@ -399,8 +400,9 @@ EndWaitForVih:
   __asm("jrult ??WaitForVih");
   __asm("EndWaitForVih:");
 #elif defined(_SDCC_)
-  __asm__("ld a, _AcquisitionBitMask"); //s: to use a zero page addressing mode
-  __asm__("ldw x, _sTouchIO");   // Input data register ...  //s: to use a zero page addressing mode
+
+  __asm__("ld a, *_AcquisitionBitMask"); //* to use a zero page addressing mode
+  __asm__("ldw x, *_sTouchIO");   // Input data register ...  //* to use a zero page addressing mode
   __asm__("incw x");
   // Loop = 1 + 1 + 2 + 2 + 2 cycles = 8 cycles
   __asm__("WaitForVih:");
@@ -409,7 +411,7 @@ EndWaitForVih:
 // If this not the case, the code must be aligned.  
   __asm__("bcp a, (x)");  // 1 cycles
   __asm__("jrne EndWaitForVih");
-  __asm__("ldw y, TIMACQ_CNTR"); // 2 cycles; hw counter also used for timeout ...
+  __asm__("ldw y, _TIMACQ_CNTR"); // 2 cycles; hw counter also used for timeout ...
   __asm__("cpw y, #0x0E00");    // 2 cycles; Timeout compare
   __asm__("jrult WaitForVih");
   __asm__("EndWaitForVih:");
@@ -627,10 +629,10 @@ void TSL_IO_SW_Burst_Stop_Timer(void)
   __asm("ld a, TIMACQ_CNTR + 1");
   __asm("ld CounterStop + 1, a");
 #elif defined(_SDCC_)
-  __asm__("ld a, TIMACQ_CNTR");
-  __asm__("ld CounterStop, a");
-  __asm__("ld a, TIMACQ_CNTR + 1");
-  __asm__("ld CounterStop + 1, a");
+  __asm__("ld a, _TIMACQ_CNTR");
+  __asm__("ld _CounterStop, a");
+  __asm__("ld a, _TIMACQ_CNTR + 1");
+  __asm__("ld _CounterStop + 1, a");
 #else
 #pragma ASM
   ld a, TIMACQ_CNTR
@@ -671,6 +673,9 @@ void TSL_IO_Acquisition(u8 AcqNumber, u8 AdjustmentLevel)
   /* Whole acquisition synchronisation */
   /* The IT_Sync_Flag.start must be set to 1 inside an IT or it will loop forever */
 #if IT_SYNC
+  printf("TSL_IO_Acquisition - 1 - %x\r\n", IT_Sync_Flags.one_acquisition_sync_enable);
+
+  #warning IT_SYNC set
   if (IT_Sync_Flags.one_acquisition_sync_enable)
   {
     IT_Sync_Flags.start = 0;
@@ -678,6 +683,7 @@ void TSL_IO_Acquisition(u8 AcqNumber, u8 AdjustmentLevel)
   }
 #endif
 
+printf("TSL_IO_Acquisition - 2 - %d\r\n", AcqNumber);
 
   for (AcqLoopIndex = 0; AcqLoopIndex < AcqNumber; AcqLoopIndex++)
   {
@@ -686,13 +692,18 @@ void TSL_IO_Acquisition(u8 AcqNumber, u8 AdjustmentLevel)
 #if IT_SYNC
     if (IT_Sync_Flags.one_measure_sync_enable)
     {
+      printf("TSL_IO_Acquisition - 3 - %d\r\n", AcqNumber);
       IT_Sync_Flags.start = 0;
       while (IT_Sync_Flags.start == 0);
+
+      printf("TSL_IO_Acquisition - 4 - %d\r\n", IT_Sync_Flags.start);
     }
 #endif
 
     do
     {
+
+      printf("TSL_IO_Acquisition - 5\r\n");
 
       MeasRejected = 0;
       CumulatedMeasurement = 0;
@@ -701,6 +712,8 @@ void TSL_IO_Acquisition(u8 AcqNumber, u8 AdjustmentLevel)
            SamplingShifter < (SAMPLING_SHIFTER_NB_LOOPS + SAMPLING_SHIFTER_LOOP_START);
            SamplingShifter++)
       {
+        printf("TSL_IO_Acquisition - 6 %d %d\r\n", SamplingShifter, (SAMPLING_SHIFTER_NB_LOOPS + SAMPLING_SHIFTER_LOOP_START));
+
         /* VIH measurement */
         disableInterrupts();
         sTouchIO.PORT_ADDR->ODR &= (u8)(~sTouchIO.DriveMask);
@@ -719,16 +732,26 @@ void TSL_IO_Acquisition(u8 AcqNumber, u8 AdjustmentLevel)
         }
 #endif
 
+        printf("TSL_IO_Acquisition - 7\r\n");
+
+
 #if SPREAD_SPECTRUM
         TSL_IO_SW_Spread_Spectrum();
 #endif
 
+        printf("TSL_IO_Acquisition - 8\r\n");
+
         disableInterrupts();
+        printf("TSL_IO_Acquisition - 8.1\r\n");
         TSL_IO_SW_Burst_Start_Timer();
         sTouchIO.PORT_ADDR->DDR &= (u8)(~sTouchIO.DriveMask);
         TSL_IO_SW_Burst_TestSyncShift();
+        printf("TSL_IO_Acquisition - 8.4\r\n");
         TSL_IO_SW_Burst_Wait_Vih();
+        printf("TSL_IO_Acquisition - 8.4.1\r\n");
         TSL_IO_SW_Burst_Stop_Timer();
+
+        printf("TSL_IO_Acquisition - 8.5\r\n");
 
         Measurement = CounterStop;
 
@@ -738,6 +761,8 @@ void TSL_IO_Acquisition(u8 AcqNumber, u8 AdjustmentLevel)
         sTouchIO.PORT_ADDR->CR1 |= sTouchIO.DriveMask;
         ((GPIO_TypeDef *)(LOADREF_PORT_ADDR))->ODR &= (u8)(~LOADREF_BIT);
         enableInterrupts();
+
+        printf("TSL_IO_Acquisition - 9\r\n");
 
         /* Single charge Aquisition synchronization */
         /* The IT_Sync_Flag.start must be set to 1 inside an IT or it will loop forever */
@@ -765,6 +790,8 @@ void TSL_IO_Acquisition(u8 AcqNumber, u8 AdjustmentLevel)
 
         CumulatedMeasurement += Measurement;
 
+        printf("TSL_IO_Acquisition - 9.5\r\n");
+
         /* Calculation of the min/max limits */
         if (SamplingShifter == SAMPLING_SHIFTER_LOOP_START)
         {
@@ -785,6 +812,7 @@ void TSL_IO_Acquisition(u8 AcqNumber, u8 AdjustmentLevel)
 
       } /* for SamplingShifter... */
 
+      printf("TSL_IO_Acquisition - 10 - %d - %d\r\n", MeasRejected, RejectionCounter);
     }
     while (MeasRejected && (RejectionCounter <= MAX_REJECTED_MEASUREMENTS));
 
@@ -798,6 +826,9 @@ void TSL_IO_Acquisition(u8 AcqNumber, u8 AdjustmentLevel)
     }
 
   } /* for AcqLoopIndex... */
+
+
+  printf("TSL_IO_Acquisition - 11");
 
   TSL_IO_Clamp(); // To avoid consumption
   enableInterrupts();
@@ -828,6 +859,8 @@ void TSL_IO_Acquisition(u8 AcqNumber, u8 AdjustmentLevel)
     }
 #endif
   }
+
+  printf("TSL_IO_Acquisition - 14");
 
 }
 

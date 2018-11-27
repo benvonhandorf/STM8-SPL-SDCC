@@ -27,9 +27,8 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm8s.h"
+#include "stm8_tsl_api.h"
 #include "stm8s_it.h"    /* SDCC patch: required by SDCC for interrupts */
-// #include "stm8_tsl_services.h"
-// #include "stm8_tsl_se.h"
 #include "stdio.h"
 #include "stm8s_it.h"    // SDCC requires ISR declaration to be included here
 
@@ -58,14 +57,55 @@
   #define PUTCHAR_PROTOTYPE int putchar (int c)
   #define GETCHAR_PROTOTYPE int getchar (void)
 #endif /* _RAISONANCE_ */
+
+
+/* LD3 on STM8/128-EVAL board + STM8S20xxK-TS1 daughter board (PB4) */
+#define LED2_PIN_MASK  GPIO_PIN_5
+#define LED2_PORT      GPIOB
+
+#define LED2_ON()  {GPIO_WriteLow(LED2_PORT, (GPIO_Pin_TypeDef)LED2_PIN_MASK);}
+#define LED2_OFF()  {GPIO_WriteHigh(LED2_PORT, (GPIO_Pin_TypeDef)LED2_PIN_MASK);}
+#define LED2_TOG()  {GPIO_WriteReverse(LED2_PORT, (GPIO_Pin_TypeDef)LED2_PIN_MASK);}
+
+#if NUMBER_OF_SINGLE_CHANNEL_KEYS > 0
+#define KEY01_DETECTED (sSCKeyInfo[0].Setting.b.DETECTED)
+#define KEY02_DETECTED (sSCKeyInfo[1].Setting.b.DETECTED)
+#define KEY03_DETECTED (sSCKeyInfo[2].Setting.b.DETECTED)
+#define KEY04_DETECTED (sSCKeyInfo[3].Setting.b.DETECTED)
+#define KEY05_DETECTED (sSCKeyInfo[4].Setting.b.DETECTED)
+#else
+#define KEY01_DETECTED (0)
+#define KEY02_DETECTED (0)
+#define KEY03_DETECTED (0)
+#define KEY04_DETECTED (0)
+#define KEY05_DETECTED (0)
+#endif
+
+
 /* Private macro -------------------------------------------------------------*/
+typedef enum
+{
+  OFF = 0,
+  ON = 1
+} LedState_T;
 
 
-/* Public variables ---------------------------------------------------------*/
-uint8_t     g_flag1ms=0;    // flag for 1ms interrupt (for TIM4 ISR)
-uint32_t    g_count1ms=0;   // 1ms counter (for TIM4 ISR)
+LedState_T Led1State;
+LedState_T Led2State;
+
+u8 Led1Delay = 0;
+u8 Led2Delay = 0;
+
+u8 Key02Touched = 0;
+u8 Key04Touched = 0;
+
+u8 ToggleLED1 = 0;
+u8 ToggleLED2 = 0;
 
 /* Private function prototypes -----------------------------------------------*/
+void ExtraCode_Init(void);
+void ExtraCode_StateMachine(void);
+
 /* Private functions ---------------------------------------------------------*/
 
 
@@ -78,112 +118,108 @@ void main(void)
   /* init High speed internal clock prescaler: 1 */
   CLK_HSIPrescalerConfig(CLK_PRESCALER_HSIDIV1);
 
-  /* Enable TIM4 CLK */
-  CLK_PeripheralClockConfig(CLK_PERIPHERAL_TIMER4, ENABLE);
-
-  /* Initialize LED pins in Output Mode */
-  #if (DEVICE==STM8S103)    // 1$ STM8 board, see https://www.cnx-software.com/2015/01/18/one-dollar-development-board/
-    #warning STM8S103 selected 
-    GPIO_Init(GPIOB, (GPIO_Pin_TypeDef)GPIO_PIN_5, GPIO_MODE_OUT_PP_LOW_FAST);
-    GPIO_WriteHigh(GPIOB, (GPIO_Pin_TypeDef)GPIO_PIN_5);
-  #elif (DEVICE==STM8S208)  // muBoard, see https://frosch.piandmore.de//de/pam9/call/public-media/event_media/160611_Vortrag_Interpreter.pdf
-    #warning STM8S208 selected
-    GPIO_Init(GPIOH, (GPIO_Pin_TypeDef)(GPIO_PIN_2 | GPIO_PIN_3), GPIO_MODE_OUT_PP_LOW_FAST);
-    GPIO_WriteHigh(GPIOH, (GPIO_Pin_TypeDef)(GPIO_PIN_2 | GPIO_PIN_3));
-  #else
-    #error STM8 board not supported!
-  #endif
   
-  // config 1ms clock
-  TIM4_DeInit();
-  TIM4_TimeBaseInit(TIM4_PRESCALER_128, 124);
-  TIM4_ClearFlag(TIM4_FLAG_UPDATE);
-  TIM4_ITConfig(TIM4_IT_UPDATE, ENABLE);
-  TIM4_Cmd(ENABLE);
+  /* Initialize LED pins in Output Mode */
+  GPIO_Init(LED2_PORT, (GPIO_Pin_TypeDef)LED2_PIN_MASK, GPIO_MODE_OUT_PP_LOW_FAST);
+  LED2_OFF()
   
   // init UART1 to 115.2kBaud, 1/8/1, no parity, no clock
   UART1_DeInit();
   UART1_Init((uint32_t)115200, UART1_WORDLENGTH_8D, UART1_STOPBITS_1, UART1_PARITY_NO,
               UART1_SYNCMODE_CLOCK_DISABLE, UART1_MODE_TXRX_ENABLE);
 
-  /* Define FLASH programming time */
-  //FLASH_SetProgrammingTime(FLASH_PROGRAMTIME_STANDARD);
+  printf("Uart initialized\r\n");
 
-  /* Unlock Data memory */
-  //FLASH_Unlock(FLASH_MEMTYPE_DATA);
+  printf("%d - %d touch channels\r\n", NUMBER_OF_SINGLE_CHANNEL_KEYS, NUMBER_OF_MULTI_CHANNEL_KEYS);
 
-  // enable interrupts
-  enableInterrupts();
+  TSL_Init();
 
-  // main loop
-  while (1)
-  {
-    // if key pressed, send echo and store to flash
-    if (UART1_GetFlagStatus(UART1_FLAG_RXNE))
-    {
-      val = getchar();
-      printf("read %c%c%c", val,10,13);
-      
-      //FLASH_ProgramByte(addr, val);
-    }
+  ExtraCode_Init();
 
-    // every 1ms
-    if (g_flag1ms)
-    { 
-      g_flag1ms=0;
+  printf("TSL Initialized\r\n");
+
+  for (;;) {
+    printf("Gate 1 SK1 State - %x %x\r\n", sSCKeyInfo[0].State.whole, val);
+
+    // if (UART1_GetFlagStatus(UART1_FLAG_RXNE))
+    // {
+    //   printf("Gate 2\r\n");
+    //   val = getchar();
+    //   printf("read %c\r\n", val);
+    // } 
+
+    //printf("Gate 3\r\n");
     
-      if ((g_count1ms % 500) == 0)
-      {
-        // toogle LED
-        #if (DEVICE==STM8S103)
-          GPIO_WriteReverse(GPIOB, (GPIO_Pin_TypeDef)GPIO_PIN_5);
-        #elif (DEVICE==STM8S208)  // muBoard, see https://frosch.piandmore.de//de/pam9/call/public-media/event_media/160611_Vortrag_Interpreter.pdf
-          GPIO_WriteReverse(GPIOH, (GPIO_Pin_TypeDef)GPIO_PIN_2);
-        #else
-          #error STM8 board not supported!
-        #endif
-        
-        // print time
-        printf("time %ld%c%c", g_count1ms,10,13);
+    ExtraCode_StateMachine();
 
-        /*
-        // Read byte from flash
-        val = FLASH_ReadByte(addr);
-
-        // Program value+1 at address + 1
-        FLASH_ProgramByte(addr+1, val+1);
-
-        // check flash content
-        printf("write: ");
-        val = FLASH_ReadByte(addr);
-        printf("%c ", val);
-        val = FLASH_ReadByte(addr+1);
-        printf("%c ", val);
-        
-        
-        // erase both bytes in flash
-        FLASH_EraseByte(addr);
-        FLASH_EraseByte((addr + 1));
-
-        // check flash content
-        printf("erase: ");
-        val = FLASH_ReadByte(addr);
-        printf("%d ", (int) val);
-        val = FLASH_ReadByte(addr+1);
-        printf("%d ", (int) val);
-        
-        // print LF+CR
-        printf("%c%c", 10,13);
-        */
-
-      } // every 500ms
+    //printf("Gate 4\r\n");
     
-    } // every 1ms
+    TSL_Action();
     
   } // main loop
 
 } // main()
 
+void ExtraCode_Init(void)
+{
+
+  u8 i;
+
+  /* All keys are implemented and enabled */
+
+#if NUMBER_OF_SINGLE_CHANNEL_KEYS > 0
+  for (i = 0; i < NUMBER_OF_SINGLE_CHANNEL_KEYS; i++)
+  {
+    sSCKeyInfo[i].Setting.b.IMPLEMENTED = 1;
+    sSCKeyInfo[i].Setting.b.ENABLED = 1;
+    sSCKeyInfo[i].DxSGroup = 0x00; /* 0x00 = DxS disabled, other values = DxS enabled */
+  }
+#endif
+
+#if NUMBER_OF_MULTI_CHANNEL_KEYS > 0
+  for (i = 0; i < NUMBER_OF_MULTI_CHANNEL_KEYS; i++)
+  {
+    sMCKeyInfo[i].Setting.b.IMPLEMENTED = 1;
+    sMCKeyInfo[i].Setting.b.ENABLED = 1;
+    sMCKeyInfo[i].DxSGroup = 0x00; /* 0x00 = DxS disabled, other values = DxS enabled */
+  }
+#endif
+
+  LED2_OFF();
+  
+  enableInterrupts();
+}
+
+/**
+  ******************************************************************************
+  * @brief Example of LED switching using touch sensing keys
+  * KEY1: LED1 toggles when the key is pressed
+  * KEY2: LED1 ON if key is pressed, LED1 OFF if key is released
+  * KEY3: LED1 ON then OFF after a delay
+  * All KEYs: LED2 toggles continuously / LED2 is OFF 
+  * @par Parameters:
+  * None
+  * @retval void None
+  * @par Required preconditions:
+  * None
+  ******************************************************************************
+  */
+void ExtraCode_StateMachine(void) {
+
+  if ((TSL_GlobalSetting.b.CHANGED) && (TSLState == TSL_IDLE_STATE))
+  {
+   
+    TSL_GlobalSetting.b.CHANGED = 0;
+    
+    if (KEY01_DETECTED)
+    {
+      printf("KEY1");
+      LED2_ON();
+    } else {
+      LED2_OFF();
+    }    
+  }  
+}
 
 /**
   * @brief Retargets the C library printf function to the UART.

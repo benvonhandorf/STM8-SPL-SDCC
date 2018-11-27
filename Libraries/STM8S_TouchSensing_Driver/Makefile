@@ -26,7 +26,7 @@ AR      = sdcclib
 
 # set output folder and target name
 OUTPUT_DIR = ./$(DEVICE)
-TARGET     = $(OUTPUT_DIR)/sts.lib
+TARGET     = $(OUTPUT_DIR)/tsl.lib
 
 # set project folder and files (all *.c)
 PRJ_ROOT    = ..

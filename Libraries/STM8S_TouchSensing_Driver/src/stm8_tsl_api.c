@@ -30,6 +30,7 @@
 #include "stm8_tsl_singlechannelkey.h"
 #include "stm8_tsl_multichannelkey.h"
 #include "stm8_tsl_services.h"
+#include "stdio.h"
 
 /* Memory section ------------------------------------------------------------*/
 #if defined(_COSMIC_) && defined(USE_PRAGMA_SECTION)
@@ -196,6 +197,7 @@ void TSL_Init(void)
   */
 void TSL_Action(void)
 {
+  printf("TSLAction: TSLState: %x\r\n", TSLState);
 
   switch (TSLState)
   {
@@ -210,15 +212,23 @@ void TSL_Action(void)
       break;
 
     case TSL_SCKEY_P1_ACQ_STATE:
+      printf("TSLAction-Acquisition 0.5: TSLState: %x\r\n", TSLState);
+
       TSL_SCKEY_P1_Acquisition();
+
+      printf("TSLAction-Acquisition 1: TSLState: %x\r\n", TSLState);
 
 #if NUMBER_OF_SINGLE_CHANNEL_PORTS > 0
       TSLState = TSL_SCKEY_P1_PROC_STATE;
+
+      printf("TSLAction-Acquisition 2: TSLState: %x\r\n", TSLState);
       break;
      
     case TSL_SCKEY_P1_PROC_STATE:
       for (KeyIndex = 0; KeyIndex < SCKEY_P1_KEY_COUNT; KeyIndex++)
       {
+        printf("TSLAction-TSL_SCKEY_P1_PROC_STATE 1: %d - TSLState: %x\r\n", KeyIndex, TSLState);
+
         TSL_SCKey_Process();
       }
 #endif // NUMBER_OF_SINGLE_CHANNEL_PORTS > 0
@@ -330,11 +340,14 @@ void TSL_Action(void)
       break;
 
     default:
+      printf("TSLAction: default: %x\r\n", TSLState);
       for (;;)
       {
         // Wait for Watchdog reset ...
       }
   }
+
+  printf("TSLAction: final: %x\r\n", TSLState);
 }
 
 /* Public functions ----------------------------------------------------------*/

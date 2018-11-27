@@ -43,8 +43,9 @@ SPL_LIB = spl.lib
 TSL_ROOT    = ../../..
 TSL_MAKE_DIR = $(TSL_ROOT)/Libraries/STM8S_TouchSensing_Driver
 TSL_INC_DIR = $(TSL_ROOT)/Libraries/STM8S_TouchSensing_Driver/inc
+TSL_CONF_DIR = $(TSL_ROOT)/Libraries/STM8S_TouchSensing_Driver/conf
 TSL_LIB_DIR = $(TSL_ROOT)/Libraries/STM8S_TouchSensing_Driver/$(DEVICE)
-TSL_LIB = sts.lib
+TSL_LIB = tsl.lib
 
 # set path to STM8S_EVAL board routines
 EVAL_DIR     = $(SPL_ROOT)/Utilities/STM8S_EVAL
@@ -63,7 +64,7 @@ EVAL_STM8S_128K_OBJECTS := $(addprefix $(OUTPUT_DIR)/, $(EVAL_STM8S_128K_SOURCE:
 
 
 # collect all include folders
-INCLUDE = -I$(PRJ_SRC_DIR) -I$(SPL_INC_DIR) -I$(TSL_INC_DIR) -I$(EVAL_DIR) -I$(EVAL_COMM_DIR) -I$(EVAL_STM8S_128K_DIR)
+INCLUDE = -I$(PRJ_SRC_DIR) -I$(SPL_INC_DIR) -I$(TSL_INC_DIR) -I$(TSL_CONF_DIR) -I$(EVAL_DIR) -I$(EVAL_COMM_DIR) -I$(EVAL_STM8S_128K_DIR)
 
 # collect all source directories
 VPATH=$(PRJ_SRC_DIR):$(SPL_SRC_DIR):$(EVAL_DIR):$(EVAL_COMM_DIR):$(EVAL_STM8S_128K_DIR)

@@ -83,9 +83,9 @@
 //
 //==============================================================================
 
-#define LOADREF_PORT_ADDR  (GPIOF_BaseAddress)  /**< LOADREF pin GPIO base address */
+#define LOADREF_PORT_ADDR  (GPIOC_BaseAddress)  /**< LOADREF pin GPIO base address */
 
-#define LOADREF_BIT        (0x10)               /**< LOADREF pin mask */
+#define LOADREF_BIT        (0x08)               /**< LOADREF pin mask */
 
 
 //==============================================================================
@@ -104,7 +104,7 @@
 
 #define SCKEY_P1_PORT_ADDR  (GPIOC_BaseAddress)  /**< Single channel key Port 1: GPIO base address */
 
-#define SCKEY_P1_A  (0x02)  /**< Single channel key Port 1: 1st key mask */
+#define SCKEY_P1_A  (0x04)  /**< Single channel key Port 1: 1st key mask */
 #define SCKEY_P1_B  (0x04)  /**< Single channel key Port 1: 2nd key mask */
 #define SCKEY_P1_C  (0x08)  /**< Single channel key Port 1: 3rd key mask */
 #define SCKEY_P1_D  (0x80)  /**< Single channel key Port 1: 4th key mask */
